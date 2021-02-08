@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import './globals';
 import "p5/lib/addons/p5.sound";
 import * as p5 from "p5";
+import ShuffleArray from './ShuffleArray.js';
 import audio from '../audio/triangles-no-1.ogg'
 import cueSet1 from './cueSet1.js'
 
@@ -20,76 +21,92 @@ const P5Sketch = () => {
 
         p.cueSet1Completed = [];
 
-        p.shapeSize = 45;
+        p.shapeSize = 60;
 
-        p.colors = [];
+        p.preload = () => {
+            p.song = p.loadSound(audio);
+        }
 
         p.setup = () => {
             p.canvas = p.createCanvas(p.canvasWidth, p.canvasHeight);
             p.background(0);
             p.strokeWeight(1);
-            p.song = p.loadSound(audio);
             p.song.onended(p.logCredits);
             for (let i = 0; i < cueSet1.length; i++) {
                 let vars = {
                     'currentCue': (i + 1),
+                    'duration': cueSet1[i].duration,
                     'durationTicks': cueSet1[i].durationTicks,
                 }
                 p.song.addCue(cueSet1[i].time, p.executeCueSet1, vars);
             }
+        };
 
-            let colorsIndex = 0;
-            for (var x = 0; x < (p.width + p.shapeSize); x += (p.shapeSize * 2)) {
-                for (var y = 0; y < (p.height + p.shapeSize); y += (p.shapeSize * 2)) {
-                    p.colors[colorsIndex] = {
-                        'r': p.random(255),
-                        'g': p.random(255),
-                        'b': p.random(255)
-                    }
-                    colorsIndex++;
-                }
-            }
+        p.draw = () => {
+            
         };
 
         p.executeCueSet1 = (vars) => {
             if (!p.cueSet1Completed.includes(vars.currentCue)) {
                 p.cueSet1Completed.push(vars.currentCue);
-                p.shapeSize = p.random(130, 200) - parseInt(vars.durationTicks / 400);
+                p.shapeSize = parseInt(vars.durationTicks / 500);
 
-                let colorsIndex = 0;
+                if (vars.currentCue === cueSet1.length){
+                    //the last one
+                    p.shapeSize = p.shapeSize + p.random(20, 40);
+                }
+                else if (p.shapeSize > 80) {
+                    p.shapeSize = p.shapeSize + p.random(-80, 0);
+                }
+                else {
+                    p.shapeSize = p.shapeSize + p.random(-10, 20);
+                }
+
+                let triangles = [];
+                let index = 0;
                 for (var x = 0; x < (p.width + p.shapeSize); x += (p.shapeSize * 2)) {
                     for (var y = 0; y < (p.height + p.shapeSize); y += (p.shapeSize * 2)) {
-                        p.colors[colorsIndex] = {
+                        triangles[index] = {
+                            'x': x,
+                            'y': y,
+                            'shapeSize': p.shapeSize,
                             'r': p.random(255),
                             'g': p.random(255),
-                            'b': p.random(255)
+                            'b': p.random(255),
                         }
-                        colorsIndex++;
+                        index++;
                     }
                 }
-                console.log(p.colors.length);                
+                triangles = ShuffleArray(triangles);
 
-                colorsIndex = 0;
                 p.background(0);
-                for (var x = 0; x < (p.width + p.shapeSize); x += (p.shapeSize * 2)) {
-                    for (var y = 0; y < (p.height + p.shapeSize); y += (p.shapeSize * 2)) {
-                        p.stroke(p.colors[colorsIndex].r, p.colors[colorsIndex].g, p.colors[colorsIndex].b);
-                        p.fill(p.colors[colorsIndex].r, p.colors[colorsIndex].g, p.colors[colorsIndex].b, 63);
-
-                        p.triangle(x - (p.shapeSize / 0.5), y + (p.shapeSize / 0.5), x, y - (p.shapeSize / 0.5), x + (p.shapeSize / 0.5), y + (p.shapeSize / 0.5));
-                        p.triangle(x - (p.shapeSize / 1), y + (p.shapeSize / 1), x, y - (p.shapeSize / 1), x + (p.shapeSize / 1), y + (p.shapeSize / 1));
-                        p.triangle(x - (p.shapeSize / 2), y + (p.shapeSize / 2), x, y - (p.shapeSize / 2), x + (p.shapeSize / 2), y + (p.shapeSize / 2));
-                        p.triangle(x - (p.shapeSize / 4), y + (p.shapeSize / 4), x, y - (p.shapeSize / 4), x + (p.shapeSize / 4), y + (p.shapeSize / 4));
-                        p.triangle(x - (p.shapeSize / 8), y + (p.shapeSize / 8), x, y - (p.shapeSize / 8), x + (p.shapeSize / 8), y + (p.shapeSize / 8));
-                        colorsIndex++;
-                    }
+                const delayAmount = parseInt(vars.duration * 1000) / triangles.length;
+                for (let i = 0; i < triangles.length; i++) {
+                    setTimeout(
+                        function () {
+                            p.drawTriangleGroup(triangles[i])
+                        },
+                        (delayAmount * i)
+                    );
                 }
+
             }
         }
 
-        p.draw = () => {
+        p.drawTriangleGroup = (triangleGroup) => {
+            let i = 0.5;
+            let x = triangleGroup.x;
+            let y = triangleGroup.y;
+            let shapeSize = triangleGroup.shapeSize;
             
-        };
+            p.stroke(triangleGroup.r, triangleGroup.g, triangleGroup.b);
+            p.fill(triangleGroup.r, triangleGroup.g, triangleGroup.b, 63);
+            
+            while (i <= 8) {
+                p.triangle(x - (shapeSize / i), y + (shapeSize / i), x, y - (shapeSize / i), x + (shapeSize / i), y + (shapeSize / i));
+                i = i * 2;
+            }
+        }
 
         p.mousePressed = () => {
             if (p.song.isPlaying()) {
@@ -120,6 +137,9 @@ const P5Sketch = () => {
         }
 
         p.reset = () => {
+            p.clear();
+            p.cueSet1Completed = [];
+            p.shapeSize = 60;
         };
         
         p.updateCanvasDimensions = () => {
